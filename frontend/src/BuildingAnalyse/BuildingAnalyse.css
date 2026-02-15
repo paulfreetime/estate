@@ -1,0 +1,249 @@
+.analyse {
+  max-width: 100%;
+}
+
+.analyse h2 {
+  color: #1e3a8a;
+  margin-bottom: 16px;
+}
+
+.analyse-msg {
+  color: #64748b;
+  font-style: italic;
+}
+
+.analyse-controls {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.analyse-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analyse-control label {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.analyse-control-input {
+  width: 80px;
+  padding: 8px 10px;
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: right;
+}
+
+.analyse-control-input:focus {
+  outline: none;
+  border-color: #60a5fa;
+}
+
+.analyse-selector {
+  margin-bottom: 20px;
+}
+
+.analyse-dropdown {
+  padding: 10px 14px;
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  min-width: 250px;
+}
+
+.analyse-dropdown:focus {
+  outline: none;
+  border-color: #60a5fa;
+}
+
+.analyse-table-wrap {
+  border-radius: 12px;
+  overflow-x: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.analyse-table {
+  border-collapse: collapse;
+  width: auto;
+  font-size: 0.95rem;
+  background: #1e293b;
+}
+
+.analyse-header {
+  background: #2563eb;
+  color: #e2e8f0;
+  padding: 14px 16px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.analyse-label-col {
+  min-width: 180px;
+}
+
+.analyse-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.analyse-remove {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #e2e8f0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.analyse-remove:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.analyse-label {
+  padding: 10px 16px;
+  color: #94a3b8;
+  font-weight: 500;
+  border-bottom: 1px solid #334155;
+  white-space: nowrap;
+}
+
+.analyse-value {
+  padding: 10px 16px;
+  color: #e2e8f0;
+  text-align: right;
+  border-bottom: 1px solid #334155;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.analyse-positive {
+  color: #4ade80;
+}
+
+.analyse-negative {
+  color: #f87171;
+}
+
+.analyse-highlight-row {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.analyse-highlight-row .analyse-label {
+  color: #93c5fd;
+  font-weight: 700;
+}
+
+.analyse-highlight-row .analyse-value {
+  font-weight: 700;
+}
+
+.analyse-separator-row {
+  background: transparent !important;
+}
+
+.analyse-separator-row td {
+  padding: 0;
+  height: 12px;
+  border: none;
+  background: transparent;
+  border-bottom: 3px solid #60a5fa;
+}
+
+.analyse-inline-input {
+  width: 70px;
+  padding: 4px 6px;
+  background: #334155;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.analyse-inline-input:focus {
+  outline: none;
+  border-color: #60a5fa;
+}
+
+.analyse-inline-input.analyse-override {
+  border-color: #f59e0b;
+  background: #3b3520;
+}
+
+.analyse-reset-btn {
+  background: none;
+  border: none;
+  color: #f59e0b;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 4px;
+  margin-left: 4px;
+}
+
+.analyse-reset-btn:hover {
+  color: #fbbf24;
+}
+
+.analyse-files-cell {
+  padding: 10px 16px;
+  vertical-align: top;
+}
+
+.analyse-file-link {
+  display: block;
+  color: #93c5fd;
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 4px 0;
+}
+
+.analyse-file-link:hover {
+  text-decoration: underline;
+}
+
+.analyse-no-files {
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+.analyse-kpi {
+  color: #fbbf24;
+}
+.analyse-export-btn {
+  padding: 10px 20px;
+  background: #16a34a;
+  color: #e2e8f0;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: background 0.15s;
+}
+
+.analyse-export-btn:hover {
+  background: #22c55e;
+}

@@ -1,0 +1,92 @@
+/* ---- CLEAN RESET ---- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(160deg, #0b132b 0%, #1a2246 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #f5f5f5; /* lys tekst så det kan ses */
+}
+
+
+/* ---- APP LAYOUT ---- */
+header {
+  background-color: #1e3a8a;
+  color: white;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: flex-start; /* alt til venstre */
+  align-items: center;
+  gap: 40px; /* lidt luft mellem titel og knapper */
+}
+
+
+
+nav button {
+  background: transparent;
+  border: 1px solid white;
+  color: white;
+  padding: 8px 16px;
+  margin-left: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+nav button.active {
+  background-color: white;
+  color: #1e3a8a;
+  border-color: white;
+}
+
+main {
+  background: white;
+  margin: 24px auto;
+  padding: 24px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  width: 90%;
+  max-width: 1400px;
+}
+
+/* ---- FORM ---- */
+.form-container {
+  width: 100%;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.form-row label {
+  width: 250px;
+  color: #1a202c;
+  font-weight: 500;
+}
+
+.form-row input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+button.save {
+  width: 100%;
+  padding: 10px;
+  background-color: #1e3a8a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 12px;
+}

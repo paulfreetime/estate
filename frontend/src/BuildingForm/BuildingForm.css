@@ -1,0 +1,75 @@
+/* --- FORM WRAPPER --- */
+.form-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+  margin: 0;
+}
+
+
+/* --- ROW LAYOUT --- */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* --- LABELS --- */
+.form-row label {
+  width: 260px;
+  color: #f5f5f5 !important;       /* tving lys label-tekst */
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* --- INPUTS --- */
+.form-row input {
+  width: 500px !important;         /* smal boks */
+  flex: none !important;           /* må ikke strække */
+  padding: 6px 8px;
+  border: 1px solid #444c66;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background-color: #2e3859 !important;
+  color: #f5f5f5 !important;
+}
+
+.form-row input::placeholder {
+  color: #cbd5e1;
+}
+
+/* --- BUTTON --- */
+button {
+  width: 100%;
+  padding: 10px;
+  background-color: #2d3748;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #3b4860;
+}
+
+.form-row input:focus {
+  outline: none;           /* fjerner standardringen */
+  box-shadow: none;        /* fjerner eventuel glød rundt om */
+  border-color: #6670a1;   /* valgfrit – giver en rolig blå kant i stedet */
+}
+
+.form-row input {
+  background-color: #2e3859 !important;
+  border: 1px solid #2e3859 !important; /* fjern kontrastkant */
+  box-shadow: none !important;
+}
+
+button {
+  width: 200px;          /* eller 250px, som du synes passer */
+  display: block;
+  margin: 20px auto 0;   /* centrerer knappen under felterne */
+}
