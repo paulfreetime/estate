@@ -39,7 +39,6 @@ function getBelaaning(f: FinansSettings, id: number): number {
 }
 
 function fmtKr(val: number) {
-  // behold minus og tusindtals-separator
   const n = Number(val) || 0;
   return n.toLocaleString("da-DK") + " kr";
 }
@@ -73,7 +72,7 @@ function nearestIndex(arr: number[] | undefined, val: number) {
   return bestI;
 }
 
-// bruges KUN til matrix-tabben
+// kun til matrix-tab (backend grid)
 function atMatrix(s: Scenarios | null, rente: number, bel: number) {
   if (!s) return null;
 
@@ -90,7 +89,7 @@ function atMatrix(s: Scenarios | null, rente: number, bel: number) {
 }
 
 export default function BuildingAdvanced() {
-  const [tab, setTab] = useState<"stress" | "scenarios">("stress");
+  const [tab, setTab] = useState<"stress" | "scenarios" | "future">("stress");
   const [allBuildings, setAllBuildings] = useState<Building[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>(getSavedIds);
   const [finans] = useState<FinansSettings>(loadFinans);
@@ -98,8 +97,13 @@ export default function BuildingAdvanced() {
   const [loading, setLoading] = useState(true);
 
   // stress settings
-  const [stressRente, setStressRente] = useState(6); // kan være 400, vi beregner direkte
+  const [stressRente, setStressRente] = useState(6);
   const [stressBelaaning, setStressBelaaning] = useState<number | "fromAnalyse">("fromAnalyse");
+
+  // future settings
+  const [futureInflation, setFutureInflation] = useState(2.0);
+  const [futureRente, setFutureRente] = useState(6.0);
+  const [futureYears, setFutureYears] = useState(30);
 
   useEffect(() => {
     fetch("http://localhost:5000/api/buildings")
@@ -114,7 +118,6 @@ export default function BuildingAdvanced() {
     [allBuildings, selectedIds],
   );
 
-  // hent scenarios til matrix-tab (og evt. visning af grid)
   useEffect(() => {
     selected.forEach((b) => {
       const id = b.id!;
@@ -135,7 +138,7 @@ export default function BuildingAdvanced() {
     });
   }
 
-  // direkte stress-beregning (IKKE matrix) => viser minus korrekt, også ved 400%
+  // direkte stress calc (så 400% virker)
   function stressCalc(b: Building, belPct: number, rentePct: number) {
     const ansk = Number(b.anskaffelse) || 0;
     const leje = Number(b.lejeindtægter) || 0;
@@ -147,10 +150,34 @@ export default function BuildingAdvanced() {
     const overskudFoerRenter = leje - omk;
     const renteUdgift = laan * (rentePct / 100);
 
-    const cf = overskudFoerRenter - renteUdgift; // kan blive meget negativ ved høj rente
+    const cf = overskudFoerRenter - renteUdgift;
     const coc = udbetaling > 0 ? (cf / udbetaling) * 100 : null;
 
     return { laan, udbetaling, overskudFoerRenter, renteUdgift, cf, coc };
+  }
+
+  // fremtidig serie (leje + omk følger inflation, rente fast)
+  function futureSeries(b: Building, belPct: number, inflationPct: number, rentePct: number, years: number) {
+    const ansk = Number(b.anskaffelse) || 0;
+    const leje0 = Number(b.lejeindtægter) || 0;
+    const omk0 = Number(b.omkostninger_i_alt) || 0;
+
+    const laan = ansk * (belPct / 100);
+    const renteUdgift = laan * (rentePct / 100);
+
+    const infl = (Number(inflationPct) || 0) / 100;
+
+    return Array.from({ length: years }, (_, i) => {
+      const year = i + 1;
+      const factor = Math.pow(1 + infl, i); // år 1 = 1.0
+      const leje = leje0 * factor;
+      const omk = omk0 * factor;
+
+      const overskudFoerRenter = leje - omk;
+      const cf = overskudFoerRenter - renteUdgift;
+
+      return { year, leje, omk, overskudFoerRenter, renteUdgift, cf };
+    });
   }
 
   if (loading) return <p>Indlæser…</p>;
@@ -166,6 +193,9 @@ export default function BuildingAdvanced() {
           <button className={tab === "scenarios" ? "active" : ""} onClick={() => setTab("scenarios")}>
             Scenarier
           </button>
+          <button className={tab === "future" ? "active" : ""} onClick={() => setTab("future")}>
+            Fremtidigt cashflow
+          </button>
         </div>
       </div>
 
@@ -177,11 +207,7 @@ export default function BuildingAdvanced() {
               .filter((b) => b.id)
               .map((b) => (
                 <label key={b.id} className="advanced-check">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(b.id!)}
-                    onChange={() => toggleSelect(b.id!)}
-                  />
+                  <input type="checkbox" checked={selectedIds.includes(b.id!)} onChange={() => toggleSelect(b.id!)} />
                   <span>{b.name}</span>
                 </label>
               ))}
@@ -191,6 +217,7 @@ export default function BuildingAdvanced() {
 
       {selected.length === 0 && <p>Vælg mindst én ejendom.</p>}
 
+      {/* STRESS */}
       {selected.length > 0 && tab === "stress" && (
         <div className="advanced-card">
           <div className="advanced-row">
@@ -221,6 +248,16 @@ export default function BuildingAdvanced() {
                 ))}
               </select>
             </div>
+
+            <button
+              className="advanced-btn"
+              onClick={() => {
+                setFutureRente(Number(stressRente) || 0);
+                setTab("future");
+              }}
+            >
+              Fremtidigt cashflow
+            </button>
           </div>
 
           <div className="advanced-table-wrap">
@@ -240,7 +277,7 @@ export default function BuildingAdvanced() {
                   const bel =
                     stressBelaaning === "fromAnalyse"
                       ? Math.round(getBelaaning(finans, id))
-                      : stressBelaaning;
+                      : (stressBelaaning as number);
 
                   const r = Number(stressRente) || 0;
                   const c = stressCalc(b, bel, r);
@@ -269,6 +306,7 @@ export default function BuildingAdvanced() {
         </div>
       )}
 
+      {/* SCENARIOS */}
       {selected.length > 0 && tab === "scenarios" && (
         <div className="advanced-card">
           <details>
@@ -306,18 +344,11 @@ export default function BuildingAdvanced() {
                       ))}
                     </tbody>
                   </table>
-
-                  {/* lille “snap demo” (valgfrit, men hjælper debugging) */}
-                  <div className="advanced-muted" style={{ marginTop: 8 }}>
-                    Grid rente: {s.rente_values[0]}%..{s.rente_values[s.rente_values.length - 1]}% · Grid belåning:{" "}
-                    {s.belaaning_values[0]}%..{s.belaaning_values[s.belaaning_values.length - 1]}%
-                  </div>
                 </div>
               );
             })}
           </details>
 
-          {/* hvis du stadig vil vise “hvad grid vælger” ved input */}
           <details style={{ marginTop: 12 }}>
             <summary>Debug: hvad grid vælger ved dine input</summary>
             {selected.map((b) => {
@@ -335,6 +366,92 @@ export default function BuildingAdvanced() {
               );
             })}
           </details>
+        </div>
+      )}
+
+      {/* FUTURE */}
+      {selected.length > 0 && tab === "future" && (
+        <div className="advanced-card">
+          <div className="advanced-row">
+            <div className="advanced-field">
+              <label>Inflation %</label>
+              <input
+                type="number"
+                step="0.1"
+                value={futureInflation}
+                onChange={(e) => setFutureInflation(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+
+            <div className="advanced-field">
+              <label>Rente %</label>
+              <input
+                type="number"
+                step="0.1"
+                value={futureRente}
+                onChange={(e) => setFutureRente(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+
+            <div className="advanced-field">
+              <label>År</label>
+              <input
+                type="number"
+                step="1"
+                value={futureYears}
+                onChange={(e) => setFutureYears(Math.max(1, Math.min(60, parseInt(e.target.value) || 30)))}
+              />
+            </div>
+
+            <button className="advanced-btn" onClick={() => setTab("stress")}>
+              Tilbage
+            </button>
+          </div>
+
+          {selected.map((b) => {
+            const id = b.id!;
+            const bel =
+              stressBelaaning === "fromAnalyse"
+                ? Math.round(getBelaaning(finans, id))
+                : (stressBelaaning as number);
+
+            const series = futureSeries(b, bel, futureInflation, futureRente, futureYears);
+
+            return (
+              <div key={id} style={{ marginTop: 14, overflowX: "auto" }}>
+                <div style={{ fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>
+                  {b.name} (belåning {bel}%)
+                </div>
+
+                <table className="advanced-table">
+                  <thead>
+                    <tr>
+                      <th>År</th>
+                      <th style={{ textAlign: "right" }}>Leje</th>
+                      <th style={{ textAlign: "right" }}>Omkostninger</th>
+                      <th style={{ textAlign: "right" }}>Overskud før renter</th>
+                      <th style={{ textAlign: "right" }}>Renteudgift</th>
+                      <th style={{ textAlign: "right" }}>Cashflow</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {series.map((r) => (
+                      <tr key={r.year}>
+                        <td>{r.year}</td>
+                        <td style={{ textAlign: "right" }}>{fmtKr(r.leje)}</td>
+                        <td style={{ textAlign: "right" }}>{fmtKr(r.omk)}</td>
+                        <td style={{ textAlign: "right" }}>{fmtKr(r.overskudFoerRenter)}</td>
+                        <td style={{ textAlign: "right" }}>{fmtKr(r.renteUdgift)}</td>
+                        <td style={{ textAlign: "right" }} className={r.cf >= 0 ? "advanced-positive" : "advanced-negative"}>
+                          {fmtKr(r.cf)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

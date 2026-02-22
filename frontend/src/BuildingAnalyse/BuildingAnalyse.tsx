@@ -359,6 +359,35 @@ function getValueClass(b: Building, key: string): string {
     return "";
   }
 
+  function futureSeries(
+    b: Building,
+    belPct: number,
+    inflationPct: number,
+    rentePct: number,
+    years: number
+  ) {
+    const ansk = Number(b.anskaffelse) || 0;
+    const leje0 = Number(b.lejeindtægter) || 0;
+    const omk0 = Number(b.omkostninger_i_alt) || 0;
+
+    const laan = ansk * (belPct / 100);
+    const renteUdgift = laan * (rentePct / 100);
+
+    const infl = inflationPct / 100;
+
+  return Array.from({ length: years }, (_, i) => {
+    const year = i + 1;
+    const factor = Math.pow(1 + infl, i); // år 1 = 1.0
+    const leje = leje0 * factor;
+    const omk = omk0 * factor;
+
+    const overskudFoerRenter = leje - omk;
+    const cf = overskudFoerRenter - renteUdgift;
+
+    return { year, leje, omk, overskudFoerRenter, renteUdgift, cf };
+  });
+}
+
   const selected = allBuildings.filter((b) => b.id !== undefined && selectedIds.includes(b.id));
   const available = allBuildings.filter((b) => b.id !== undefined && !selectedIds.includes(b.id!));
 
