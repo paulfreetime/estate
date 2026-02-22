@@ -34,20 +34,19 @@ function getSavedIds(): number[] {
   }
 }
 
-function getRente(f: FinansSettings, id: number): number {
-  return f.overrides[id]?.rente ?? f.globalRente;
-}
-
 function getBelaaning(f: FinansSettings, id: number): number {
   return f.overrides[id]?.belaaning ?? f.globalBelaaning;
 }
 
 function fmtKr(val: number) {
-  return (val || 0).toLocaleString("da-DK") + " kr";
+  // behold minus og tusindtals-separator
+  const n = Number(val) || 0;
+  return n.toLocaleString("da-DK") + " kr";
 }
 
 function pct(val: number) {
-  return (val || 0).toFixed(2).replace(".", ",") + " %";
+  const n = Number(val) || 0;
+  return n.toFixed(2).replace(".", ",") + " %";
 }
 
 type Scenarios = {
@@ -58,12 +57,36 @@ type Scenarios = {
   overskud_foer_renter: number;
 };
 
+function nearestIndex(arr: number[] | undefined, val: number) {
+  if (!arr || arr.length === 0) return -1;
+
+  let bestI = 0;
+  let bestD = Math.abs(arr[0] - val);
+
+  for (let i = 1; i < arr.length; i++) {
+    const d = Math.abs(arr[i] - val);
+    if (d < bestD) {
+      bestD = d;
+      bestI = i;
+    }
+  }
+  return bestI;
+}
+
+// bruges KUN til matrix-tabben
 function atMatrix(s: Scenarios | null, rente: number, bel: number) {
   if (!s) return null;
-  const ri = s.rente_values?.findIndex((x) => x === rente);
-  const bi = s.belaaning_values?.findIndex((x) => x === bel);
-  if (ri === -1 || bi === -1) return null;
-  return { cf: s.cash_flow?.[ri]?.[bi], coc: s.cash_on_cash?.[ri]?.[bi] };
+
+  const ri = nearestIndex(s.rente_values, rente);
+  const bi = nearestIndex(s.belaaning_values, bel);
+  if (ri < 0 || bi < 0) return null;
+
+  return {
+    cf: s.cash_flow?.[ri]?.[bi],
+    coc: s.cash_on_cash?.[ri]?.[bi],
+    usedRente: s.rente_values[ri],
+    usedBel: s.belaaning_values[bi],
+  };
 }
 
 export default function BuildingAdvanced() {
@@ -75,7 +98,7 @@ export default function BuildingAdvanced() {
   const [loading, setLoading] = useState(true);
 
   // stress settings
-  const [stressRente, setStressRente] = useState(6);
+  const [stressRente, setStressRente] = useState(6); // kan være 400, vi beregner direkte
   const [stressBelaaning, setStressBelaaning] = useState<number | "fromAnalyse">("fromAnalyse");
 
   useEffect(() => {
@@ -91,6 +114,7 @@ export default function BuildingAdvanced() {
     [allBuildings, selectedIds],
   );
 
+  // hent scenarios til matrix-tab (og evt. visning af grid)
   useEffect(() => {
     selected.forEach((b) => {
       const id = b.id!;
@@ -109,6 +133,24 @@ export default function BuildingAdvanced() {
       localStorage.setItem("analyse-ids", JSON.stringify(next));
       return next;
     });
+  }
+
+  // direkte stress-beregning (IKKE matrix) => viser minus korrekt, også ved 400%
+  function stressCalc(b: Building, belPct: number, rentePct: number) {
+    const ansk = Number(b.anskaffelse) || 0;
+    const leje = Number(b.lejeindtægter) || 0;
+    const omk = Number(b.omkostninger_i_alt) || 0;
+
+    const laan = ansk * (belPct / 100);
+    const udbetaling = ansk - laan;
+
+    const overskudFoerRenter = leje - omk;
+    const renteUdgift = laan * (rentePct / 100);
+
+    const cf = overskudFoerRenter - renteUdgift; // kan blive meget negativ ved høj rente
+    const coc = udbetaling > 0 ? (cf / udbetaling) * 100 : null;
+
+    return { laan, udbetaling, overskudFoerRenter, renteUdgift, cf, coc };
   }
 
   if (loading) return <p>Indlæser…</p>;
@@ -195,26 +237,24 @@ export default function BuildingAdvanced() {
               <tbody>
                 {selected.map((b) => {
                   const id = b.id!;
-                  const s = scenariosMap[id] ?? null;
                   const bel =
                     stressBelaaning === "fromAnalyse"
                       ? Math.round(getBelaaning(finans, id))
                       : stressBelaaning;
 
-                  const v = atMatrix(s, stressRente, bel);
-                  const cf = v?.cf;
-                  const coc = v?.coc;
+                  const r = Number(stressRente) || 0;
+                  const c = stressCalc(b, bel, r);
 
                   return (
                     <tr key={id}>
                       <td>{b.name}</td>
-                      <td style={{ textAlign: "right" }}>
-                        {Number.isFinite(cf as number) ? fmtKr(cf as number) : "—"}
+                      <td style={{ textAlign: "right" }} className={c.cf >= 0 ? "advanced-positive" : "advanced-negative"}>
+                        {fmtKr(c.cf)}
                       </td>
-                      <td style={{ textAlign: "right" }}>
-                        {Number.isFinite(coc as number) ? pct(coc as number) : "—"}
+                      <td style={{ textAlign: "right" }} className={(c.coc ?? 0) >= 0 ? "advanced-positive" : "advanced-negative"}>
+                        {c.coc === null ? "—" : pct(c.coc)}
                       </td>
-                      <td style={{ textAlign: "right" }}>{stressRente.toFixed(1).replace(".", ",")} %</td>
+                      <td style={{ textAlign: "right" }}>{r.toFixed(1).replace(".", ",")} %</td>
                       <td style={{ textAlign: "right" }}>{bel} %</td>
                     </tr>
                   );
@@ -222,30 +262,32 @@ export default function BuildingAdvanced() {
               </tbody>
             </table>
           </div>
+
+          <div className="advanced-muted" style={{ marginTop: 10 }}>
+            NB: Stresstest beregnes direkte (så 400% rente virker). “Scenarier”-tabben er stadig grid fra backend.
+          </div>
         </div>
       )}
 
       {selected.length > 0 && tab === "scenarios" && (
         <div className="advanced-card">
-          <p style={{ marginTop: 0 }}>
-            Klik en ejendom for at se dens matrix (cash-on-cash).
-          </p>
-
           <details>
-            <summary>Vis matrix pr ejendom</summary>
+            <summary>Vis matrix pr ejendom (cash-on-cash)</summary>
             {selected.map((b) => {
               const s = scenariosMap[b.id!] ?? null;
-              if (!s) return <div key={b.id}>Ingen data for {b.name}</div>;
+              if (!s) return <div key={b.id} className="advanced-muted">Ingen data for {b.name}</div>;
 
               return (
                 <div key={b.id} style={{ marginTop: 12, overflowX: "auto" }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{b.name}</div>
+                  <div style={{ fontWeight: 600, marginBottom: 6, color: "#e2e8f0" }}>{b.name}</div>
                   <table style={{ borderCollapse: "collapse", minWidth: 600 }}>
                     <thead>
                       <tr>
-                        <th style={{ textAlign: "left", padding: 6 }}>Rente \\ Belåning</th>
+                        <th style={{ textAlign: "left", padding: 6, background: "#2563eb", color: "#e2e8f0" }}>
+                          Rente \\ Belåning
+                        </th>
                         {s.belaaning_values.map((x) => (
-                          <th key={x} style={{ textAlign: "right", padding: 6 }}>
+                          <th key={x} style={{ textAlign: "right", padding: 6, background: "#2563eb", color: "#e2e8f0" }}>
                             {x}%
                           </th>
                         ))}
@@ -254,9 +296,9 @@ export default function BuildingAdvanced() {
                     <tbody>
                       {s.rente_values.map((r, i) => (
                         <tr key={r}>
-                          <td style={{ padding: 6 }}>{r}%</td>
+                          <td style={{ padding: 6, color: "#94a3b8", borderBottom: "1px solid #334155" }}>{r}%</td>
                           {s.cash_on_cash[i].map((v, j) => (
-                            <td key={j} style={{ textAlign: "right", padding: 6 }}>
+                            <td key={j} style={{ textAlign: "right", padding: 6, color: "#e2e8f0", borderBottom: "1px solid #334155" }}>
                               {Number.isFinite(v) ? v.toFixed(1).replace(".", ",") + " %" : "—"}
                             </td>
                           ))}
@@ -264,6 +306,31 @@ export default function BuildingAdvanced() {
                       ))}
                     </tbody>
                   </table>
+
+                  {/* lille “snap demo” (valgfrit, men hjælper debugging) */}
+                  <div className="advanced-muted" style={{ marginTop: 8 }}>
+                    Grid rente: {s.rente_values[0]}%..{s.rente_values[s.rente_values.length - 1]}% · Grid belåning:{" "}
+                    {s.belaaning_values[0]}%..{s.belaaning_values[s.belaaning_values.length - 1]}%
+                  </div>
+                </div>
+              );
+            })}
+          </details>
+
+          {/* hvis du stadig vil vise “hvad grid vælger” ved input */}
+          <details style={{ marginTop: 12 }}>
+            <summary>Debug: hvad grid vælger ved dine input</summary>
+            {selected.map((b) => {
+              const s = scenariosMap[b.id!] ?? null;
+              if (!s) return null;
+              const bel =
+                stressBelaaning === "fromAnalyse"
+                  ? Math.round(getBelaaning(finans, b.id!))
+                  : (stressBelaaning as number);
+              const v = atMatrix(s, stressRente, bel);
+              return (
+                <div key={b.id} className="advanced-muted" style={{ marginTop: 6 }}>
+                  {b.name}: input {stressRente}% / {bel}% → grid {v?.usedRente ?? "?"}% / {v?.usedBel ?? "?"}%
                 </div>
               );
             })}
