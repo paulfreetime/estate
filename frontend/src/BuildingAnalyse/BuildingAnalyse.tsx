@@ -53,7 +53,7 @@ function getBelaaning(f: FinansSettings, id: number): number {
   return f.overrides[id]?.belaaning ?? f.globalBelaaning;
 }
 
-type RowKey = keyof Building | "overskud" | "afkast" | "bruttoafkast" | "leje_pr_kvm" | "omk_pr_kvm" | "leje_pr_lejemaal" | "omkostningsprocent" | "belaaning_pct" | "rente_pct" | "udbetaling" | "laanebeloeb" | "aarlig_rente" | "cash_flow" | "cash_on_cash" | "sep1" | "sep2" | "sep3" | "sep4" | "sep5" | "sep6";
+type RowKey = keyof Building | "overskud" | "afkast" | "bruttoafkast" | "leje_pr_kvm" | "omk_pr_kvm" | "leje_pr_lejemaal" | "omkostningsprocent" | "belaaning_pct" | "rente_pct" | "udbetaling" | "laanebeloeb" | "aarlig_rente" | "cash_flow" | "cash_on_cash" | "sep1" | "sep2" | "sep3" | "sep4" | "sep5" | "sep6" | "stress_cf";
 
 const rows: { key: RowKey; label: string; separator?: boolean }[] = [
   { key: "total_kvm", label: "Total kvm" },
@@ -83,6 +83,7 @@ const rows: { key: RowKey; label: string; separator?: boolean }[] = [
   { key: "aarlig_rente", label: "Årlig renteudgift" },
   { key: "sep5", label: "", separator: true },
   { key: "cash_flow", label: "Overskud efter renter" },
+  { key: "stress_cf", label: "Stresstest, overskud ved 6% rente" },
   { key: "sep6", label: "", separator: true },
   { key: "cash_on_cash", label: "Cash-on-cash return" },
   { key: "afkast", label: "Nettoafkast %" },
@@ -96,6 +97,7 @@ const rows: { key: RowKey; label: string; separator?: boolean }[] = [
   { key: "belaaning_pct", label: "Belåning %" },
   { key: "rente_pct", label: "Rente % (ÅOP)" },
   { key: "kommentar", label: "Kommentar" },
+  
 ];
 
 function fmt(val: number) {
@@ -126,6 +128,7 @@ function BuildingAnalyse() {
   const [loading, setLoading] = useState(true);
   const [filesMap, setFilesMap] = useState<Record<number, string[]>>({});
   const [finans, setFinans] = useState<FinansSettings>(loadFinans);
+  const [scenariosMap, setScenariosMap] = useState<Record<number, any>>({});
 
   useEffect(() => {
     fetch("http://localhost:5000/api/buildings")
@@ -145,6 +148,27 @@ function BuildingAnalyse() {
       }
     });
   }, [selectedIds]);
+
+useEffect(() => {
+  const sel = allBuildings.filter(
+    (b) => b.id !== undefined && selectedIds.includes(b.id)
+  );
+
+  sel.forEach((b) => {
+    if (!b.id) return;
+    if (scenariosMap[b.id] !== undefined) return;
+
+    fetch(`http://localhost:5000/api/buildings/${b.id}/scenarios`)
+      .then((res) => res.json())
+      .then((data) =>
+        setScenariosMap((prev) => ({ ...prev, [b.id!]: data }))
+      )
+      .catch(() =>
+        setScenariosMap((prev) => ({ ...prev, [b.id!]: null }))
+      );
+  });
+}, [selectedIds, allBuildings]);
+
 
   function updateFinans(updated: FinansSettings) {
     setFinans(updated);
@@ -247,8 +271,27 @@ async function exportExcel() {
     return { rente, belaaning, laan, udbetaling, aarligRente, overskud, cashFlow, cashOnCash };
   }
 
+  function cashFlowAt(id: number, rente: number, belaaning: number): number | null {
+    const s = scenariosMap[id];
+    if (!s) return null;
+
+    const ri = s.rente_values?.findIndex((x: number) => x === rente);
+    const bi = s.belaaning_values?.findIndex((x: number) => x === belaaning);
+    if (ri === -1 || bi === -1) return null;
+
+    const v = s.cash_flow?.[ri]?.[bi];
+    return Number.isFinite(v) ? v : null;
+  }
+
   function getValue(b: Building, key: string): string {
     const c = calc(b);
+  if (key === "stress_cf") {
+    const rente = 6;
+    const bel = Math.round(getBelaaning(finans, b.id!));
+    const cf = cashFlowAt(b.id!, rente, bel);
+  return cf === null ? "—" : fmt(cf);
+  }
+
 
     if (key === "overskud") return fmt(c.overskud);
     if (key === "belaaning_pct") return "input";

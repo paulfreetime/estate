@@ -10,6 +10,7 @@ from typing import List
 from database import engine, SessionLocal, Base
 from models import Building
 from datetime import datetime
+from scenario_engine import scenario_matrix_for_building, default_grid
 
 Base.metadata.create_all(bind=engine)
 
@@ -65,6 +66,22 @@ class BuildingOut(BuildingIn):
 
     class Config:
         from_attributes = True
+
+
+@app.get("/api/buildings/{building_id}/scenarios")
+def building_scenarios(building_id: int, db: Session = Depends(get_db)):
+    building = db.query(Building).filter(Building.id == building_id).first()
+    if not building:
+        raise HTTPException(status_code=404, detail="Ejendom ikke fundet")
+
+    rente, belaaning = default_grid()
+    payload = {
+        "anskaffelse": building.anskaffelse,
+        "lejeindtægter": building.lejeindtægter,
+        "omkostninger_i_alt": building.omkostninger_i_alt,
+    }
+
+    return scenario_matrix_for_building(payload, rente.tolist(), belaaning.tolist())
 
 
 @app.get("/api/health")

@@ -3,10 +3,13 @@ import BuildingForm from "./BuildingForm/BuildingForm";
 import Home from "./Home/Home";
 import BuildingList from "./BuildingList/BuildingList";
 import BuildingAnalyse from "./BuildingAnalyse/BuildingAnalyse";
+import BuildingAdvanced from "./BuildingAdvanced/BuildingAdvanced";
 
 function getView() {
   const hash = window.location.hash.replace("#", "");
-  return ["home", "form", "list", "analyse"].includes(hash) ? hash : "home";
+  return ["home", "form", "list", "analyse", "advanced"].includes(hash)
+    ? hash
+    : "home";
 }
 
 function App() {
@@ -43,14 +46,23 @@ function App() {
           <button onClick={() => navigate("form")}>Indtast ny ejendom</button>
           <button onClick={() => navigate("list")}>Se ejendomme</button>
           <button onClick={() => navigate("analyse")}>Analyse</button>
+          <button onClick={() => navigate("advanced")}>Advanced</button>
         </nav>
       </header>
 
-      <main style={{ padding: "24px", background: "transparent", boxShadow: "none", border: "none" }}>
+      <main
+        style={{
+          padding: "24px",
+          background: "transparent",
+          boxShadow: "none",
+          border: "none",
+        }}
+      >
         {view === "home" && <Home onNavigate={navigate} />}
         {view === "form" && <BuildingForm />}
         {view === "list" && <BuildingList />}
         {view === "analyse" && <BuildingAnalyse />}
+        {view === "advanced" && <BuildingAdvanced />}
       </main>
     </>
   );

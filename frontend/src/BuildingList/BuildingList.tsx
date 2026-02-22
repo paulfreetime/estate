@@ -38,7 +38,11 @@ const summaryColumns: { key: keyof Building | "overskud"; label: string }[] = [
   { key: "overskud", label: "Overskud" },
 ];
 
-const detailFields: { key: keyof Building; label: string; type: "text" | "number" }[] = [
+const detailFields: {
+  key: keyof Building;
+  label: string;
+  type: "text" | "number";
+}[] = [
   { key: "name", label: "Navn", type: "text" },
   { key: "address", label: "Adresse", type: "text" },
   { key: "total_kvm", label: "Total kvm", type: "number" },
@@ -57,16 +61,30 @@ const detailFields: { key: keyof Building; label: string; type: "text" | "number
   { key: "administration", label: "Administration", type: "number" },
   { key: "regnskabsassistance", label: "Regnskabsassistance", type: "number" },
   { key: "vicevært", label: "Vicevært", type: "number" },
-  { key: "udvendig_vedligeholdelse", label: "Udvendig vedligeholdelse", type: "number" },
+  {
+    key: "udvendig_vedligeholdelse",
+    label: "Udvendig vedligeholdelse",
+    type: "number",
+  },
   { key: "andet", label: "Andet", type: "number" },
   { key: "kommentar", label: "Kommentar", type: "text" },
 ];
 
 const omkostningKeys: (keyof Building)[] = [
-  "lokaleomkostninger", "fjernvarme", "forsikring", "ejendomsskat",
-  "renovation", "vand", "småting", "internet", "ejerforening",
-  "administration", "regnskabsassistance", "vicevært",
-  "udvendig_vedligeholdelse", "andet"
+  "lokaleomkostninger",
+  "fjernvarme",
+  "forsikring",
+  "ejendomsskat",
+  "renovation",
+  "vand",
+  "småting",
+  "internet",
+  "ejerforening",
+  "administration",
+  "regnskabsassistance",
+  "vicevært",
+  "udvendig_vedligeholdelse",
+  "andet",
 ];
 
 function fmt(val: number) {
@@ -84,7 +102,19 @@ function BuildingList() {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<Building | null>(null);
   const [files, setFiles] = useState<string[]>([]);
+  const [scenarios, setScenarios] = useState<any>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selected?.id) {
+      fetch(`http://localhost:5000/api/buildings/${selected.id}/scenarios`)
+        .then((res) => res.json())
+        .then(setScenarios)
+        .catch(() => setScenarios(null));
+    } else {
+      setScenarios(null);
+    }
+  }, [selected]);
 
   useEffect(() => {
     fetch("http://localhost:5000/api/buildings")
@@ -121,7 +151,7 @@ function BuildingList() {
     if (!editData) return;
     setEditData({
       ...editData,
-      [key]: type === "number" ? (parseFloat(value) || 0) : value,
+      [key]: type === "number" ? parseFloat(value) || 0 : value,
     });
   }
 
@@ -130,18 +160,26 @@ function BuildingList() {
 
     const updated = {
       ...editData,
-      omkostninger_i_alt: omkostningKeys.reduce((sum, key) => sum + (Number(editData[key]) || 0), 0),
+      omkostninger_i_alt: omkostningKeys.reduce(
+        (sum, key) => sum + (Number(editData[key]) || 0),
+        0,
+      ),
     };
 
     try {
-      const res = await fetch(`http://localhost:5000/api/buildings/${updated.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updated),
-      });
+      const res = await fetch(
+        `http://localhost:5000/api/buildings/${updated.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updated),
+        },
+      );
       if (res.ok) {
         const result = await res.json();
-        setBuildings((prev) => prev.map((b) => (b.id === result.id ? result : b)));
+        setBuildings((prev) =>
+          prev.map((b) => (b.id === result.id ? result : b)),
+        );
         setSelected(result);
         setEditing(false);
         setEditData(null);
@@ -156,10 +194,13 @@ function BuildingList() {
     const formData = new FormData();
     Array.from(e.target.files).forEach((f) => formData.append("files", f));
     try {
-      const res = await fetch(`http://localhost:5000/api/buildings/${selected.id}/files`, {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch(
+        `http://localhost:5000/api/buildings/${selected.id}/files`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
       if (res.ok) {
         const data = await res.json();
         setFiles((prev) => [...prev, ...data.files]);
@@ -173,9 +214,12 @@ function BuildingList() {
   async function handleDeleteFile(filename: string) {
     if (!selected?.id || !confirm(`Slet ${filename}?`)) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/buildings/${selected.id}/files/${filename}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `http://localhost:5000/api/buildings/${selected.id}/files/${filename}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (res.ok) {
         setFiles((prev) => prev.filter((f) => f !== filename));
       }
@@ -206,7 +250,8 @@ function BuildingList() {
   }
 
   if (loading) return <p className="building-list-msg">Indlæser…</p>;
-  if (buildings.length === 0) return <p className="building-list-msg">Ingen ejendomme endnu.</p>;
+  if (buildings.length === 0)
+    return <p className="building-list-msg">Ingen ejendomme endnu.</p>;
 
   return (
     <div className="building-list">
@@ -216,7 +261,9 @@ function BuildingList() {
           <thead>
             <tr>
               {summaryColumns.map((col) => (
-                <th className="building-list-header" key={col.key}>{col.label}</th>
+                <th className="building-list-header" key={col.key}>
+                  {col.label}
+                </th>
               ))}
             </tr>
           </thead>
@@ -225,13 +272,21 @@ function BuildingList() {
               <tr
                 key={b.id ?? i}
                 className={`building-list-row ${selected?.id === b.id ? "active" : ""}`}
-                onClick={() => { setSelected(selected?.id === b.id ? null : b); setEditing(false); setEditData(null); }}
+                onClick={() => {
+                  setSelected(selected?.id === b.id ? null : b);
+                  setEditing(false);
+                  setEditData(null);
+                }}
               >
                 {summaryColumns.map((col) => {
                   if (col.key === "overskud") {
                     const val = overskud(b);
                     return (
-                      <td className="building-list-cell" key={col.key} style={{ color: val >= 0 ? "#4ade80" : "#f87171" }}>
+                      <td
+                        className="building-list-cell"
+                        key={col.key}
+                        style={{ color: val >= 0 ? "#4ade80" : "#f87171" }}
+                      >
                         {fmt(val)}
                       </td>
                     );
@@ -252,39 +307,98 @@ function BuildingList() {
       {selected && (
         <div className="building-modal-overlay" onClick={closeModal}>
           <div className="building-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="building-modal-close" onClick={closeModal}>×</button>
+            <button className="building-modal-close" onClick={closeModal}>
+              ×
+            </button>
 
             {!editing ? (
               <>
                 <h3 className="building-modal-title">{selected.name}</h3>
                 <p className="building-modal-address">{selected.address}</p>
                 <div>
-                  {detailFields.filter(f => f.key !== "name" && f.key !== "address").map((f) => (
-                    <div key={f.key} className="building-detail-row">
-                      <span className="building-detail-label">{f.label}</span>
-                      <span className="building-detail-value">
-                        {f.key === "antal_lejemaal"
-                          ? selected[f.key]
-                          : fmt(selected[f.key] as number)}
-                      </span>
-                    </div>
-                  ))}
+                  {detailFields
+                    .filter((f) => f.key !== "name" && f.key !== "address")
+                    .map((f) => (
+                      <div key={f.key} className="building-detail-row">
+                        <span className="building-detail-label">{f.label}</span>
+                        <span className="building-detail-value">
+                          {f.key === "antal_lejemaal"
+                            ? selected[f.key]
+                            : fmt(selected[f.key] as number)}
+                        </span>
+                      </div>
+                    ))}
                   <div className="building-detail-row building-detail-overskud">
-                    <span className="building-detail-label">Omkostninger i alt</span>
-                    <span className="building-detail-value">{fmt(selected.omkostninger_i_alt)}</span>
+                    <span className="building-detail-label">
+                      Omkostninger i alt
+                    </span>
+                    <span className="building-detail-value">
+                      {fmt(selected.omkostninger_i_alt)}
+                    </span>
                   </div>
                   <div className="building-detail-row building-detail-overskud">
                     <span className="building-detail-label">Overskud</span>
                     <span
                       className="building-detail-value"
-                      style={{ color: overskud(selected) >= 0 ? "#4ade80" : "#f87171" }}
+                      style={{
+                        color: overskud(selected) >= 0 ? "#4ade80" : "#f87171",
+                      }}
                     >
                       {fmt(overskud(selected))}
                     </span>
                   </div>
                 </div>
+                {scenarios && (
+                  <div style={{ marginTop: 16 }}>
+                    <h4>Cash-on-cash (rente x belåning)</h4>
+                    <div style={{ overflowX: "auto" }}>
+                      <table
+                        style={{ borderCollapse: "collapse", minWidth: 600 }}
+                      >
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: "left", padding: 6 }}>
+                              Rente \\ Belåning
+                            </th>
+                            {scenarios.belaaning_values.map((b: number) => (
+                              <th
+                                key={b}
+                                style={{ textAlign: "right", padding: 6 }}
+                              >
+                                {b}%
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {scenarios.rente_values.map(
+                            (r: number, i: number) => (
+                              <tr key={r}>
+                                <td style={{ padding: 6 }}>{r}%</td>
+                                {scenarios.cash_on_cash[i].map(
+                                  (v: number, j: number) => (
+                                    <td
+                                      key={j}
+                                      style={{ textAlign: "right", padding: 6 }}
+                                    >
+                                      {Number.isFinite(v)
+                                        ? v.toFixed(1).replace(".", ",") + " %"
+                                        : "—"}
+                                    </td>
+                                  ),
+                                )}
+                              </tr>
+                            ),
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
-                <button className="building-edit-btn" onClick={startEdit}>Rediger</button>
+                <button className="building-edit-btn" onClick={startEdit}>
+                  Rediger
+                </button>
               </>
             ) : (
               <>
@@ -297,36 +411,69 @@ function BuildingList() {
                         className="building-edit-input"
                         type={f.type}
                         value={editData?.[f.key] ?? ""}
-                        onChange={(e) => handleEditChange(f.key, e.target.value, f.type)}
+                        onChange={(e) =>
+                          handleEditChange(f.key, e.target.value, f.type)
+                        }
                       />
                     </div>
                   ))}
                 </div>
                 <div className="building-edit-actions">
-                  <button className="building-save-btn" onClick={handleSaveEdit}>Gem</button>
-                  <button className="building-cancel-btn" onClick={cancelEdit}>Annuller</button>
+                  <button
+                    className="building-save-btn"
+                    onClick={handleSaveEdit}
+                  >
+                    Gem
+                  </button>
+                  <button className="building-cancel-btn" onClick={cancelEdit}>
+                    Annuller
+                  </button>
                 </div>
               </>
             )}
 
             <div className="building-files-section">
               <h4 className="building-files-title">Dokumenter</h4>
-              <input ref={fileInput} type="file" multiple hidden onChange={handleUpload} />
-              <button className="building-upload-btn" onClick={() => fileInput.current?.click()}>
+              <input
+                ref={fileInput}
+                type="file"
+                multiple
+                hidden
+                onChange={handleUpload}
+              />
+              <button
+                className="building-upload-btn"
+                onClick={() => fileInput.current?.click()}
+              >
                 Upload filer
               </button>
-              {files.length === 0 && <p className="building-files-empty">Ingen dokumenter endnu.</p>}
+              {files.length === 0 && (
+                <p className="building-files-empty">Ingen dokumenter endnu.</p>
+              )}
               {files.map((f) => (
                 <div key={f} className="building-file-row">
-                  <a className="building-file-link" href={`http://localhost:5000/api/buildings/${selected.id}/files/${f}`} target="_blank" rel="noreferrer">
+                  <a
+                    className="building-file-link"
+                    href={`http://localhost:5000/api/buildings/${selected.id}/files/${f}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     {f}
                   </a>
-                  <button className="building-file-delete" onClick={() => handleDeleteFile(f)}>×</button>
+                  <button
+                    className="building-file-delete"
+                    onClick={() => handleDeleteFile(f)}
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
 
-            <button className="building-delete-btn" onClick={() => handleDelete(selected)}>
+            <button
+              className="building-delete-btn"
+              onClick={() => handleDelete(selected)}
+            >
               Slet ejendom
             </button>
           </div>
