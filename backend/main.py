@@ -4,11 +4,13 @@ import os
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 from database import engine, SessionLocal, Base
-from models import Building
+from models import Building, User
+from auth import get_current_user, create_token, hash_password, verify_password
 from datetime import datetime
 from scenario_engine import scenario_matrix_for_building, default_grid
 
@@ -34,6 +36,35 @@ def get_db():
     finally:
         db.close()
 
+
+# ── Auth ────────────────────────────────────────────────────────────────
+
+@app.post("/api/auth/register")
+def register(email: str, password: str, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=400, detail="Email allerede i brug")
+    user = User(email=email, hashed_password=hash_password(password))
+    db.add(user)
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/auth/login")
+def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == form.username).first()
+    if not user or not verify_password(form.password, user.hashed_password):
+        raise HTTPException(
+            status_code=401, detail="Forkert email eller adgangskode")
+    token = create_token({"sub": user.email})
+    return {"access_token": token, "token_type": "bearer"}
+
+
+@app.get("/api/auth/me")
+def me(current_user: User = Depends(get_current_user)):
+    return {"email": current_user.email, "id": current_user.id}
+
+
+# ── Buildings ───────────────────────────────────────────────────────────
 
 class BuildingIn(BaseModel):
     name: str = ""
@@ -73,14 +104,12 @@ def building_scenarios(building_id: int, db: Session = Depends(get_db)):
     building = db.query(Building).filter(Building.id == building_id).first()
     if not building:
         raise HTTPException(status_code=404, detail="Ejendom ikke fundet")
-
     rente, belaaning = default_grid()
     payload = {
         "anskaffelse": building.anskaffelse,
         "lejeindtægter": building.lejeindtægter,
         "omkostninger_i_alt": building.omkostninger_i_alt,
     }
-
     return scenario_matrix_for_building(payload, rente.tolist(), belaaning.tolist())
 
 
@@ -122,17 +151,14 @@ async def upload_files(
     building = db.query(Building).filter(Building.id == building_id).first()
     if not building:
         raise HTTPException(status_code=404, detail="Ejendom ikke fundet")
-
     folder = os.path.join(UPLOAD_DIR, str(building_id))
     os.makedirs(folder, exist_ok=True)
-
     saved = []
     for f in files:
         path = os.path.join(folder, f.filename)
         with open(path, "wb") as out:
             out.write(await f.read())
         saved.append(f.filename)
-
     return {"files": saved}
 
 
@@ -196,12 +222,9 @@ def export_analyse(payload: dict):
     headers = list(data[0].keys())
     header_fill = PatternFill("solid", fgColor="2563EB")
     header_font = Font(bold=True, color="FFFFFF", name="Arial", size=11)
-    label_font = Font(name="Arial", size=10, color="64748B")
     value_font = Font(name="Arial", size=10)
     highlight_fill = PatternFill("solid", fgColor="1E3A5F")
-    thin_border = Border(
-        bottom=Side(style="thin", color="334155")
-    )
+    thin_border = Border(bottom=Side(style="thin", color="334155"))
 
     for col_idx, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col_idx, value=header)
